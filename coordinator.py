@@ -3,6 +3,9 @@ import socket
 import pickle
 from threading import Thread
 from multiprocessing import Process
+import time
+
+from matplotlib import pyplot as plt
 from map_worker import run_map_worker
 from reduce_worker import run_reduce_worker
 
@@ -11,9 +14,9 @@ MAP_PORT_BASE = 5000
 REDUCE_PORT_BASE = 6000
 MAP_DONE_PORT = 7000
 REDUCE_DONE_PORT = 8000
-NB_REDUCERS = 3
 
-def start_map_workers(files):
+
+def start_map_workers(files,NB_REDUCERS):
     """ Démarre les processus mappers sur les ports 5001, 5002 etc..."""
     workers = []
     for i, file in enumerate(files):
@@ -23,7 +26,7 @@ def start_map_workers(files):
         workers.append(p)
     return workers
 
-def start_reduce_workers():
+def start_reduce_workers(NB_REDUCERS):
     """ Démarre les processus reducers sur les ports 6001, 6002 etc..."""
     workers = []
     for i in range(NB_REDUCERS):
@@ -47,14 +50,14 @@ def wait_for_all_mappers(n_maps):
                     done += 1
                     print(f"Mapper terminé ({done}/{n_maps})")
 
-def notify_reducers_done():
+def notify_reducers_done(NB_REDUCERS):
     """ Quand les mappers ont fini coordinator previent les reducers qu'ils ne recevront plus rien"""
     for i in range(NB_REDUCERS):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((HOST, REDUCE_PORT_BASE + i))
             s.sendall(b'NO_MORE_DATA')
 
-def waiting_reducers_done():
+def waiting_reducers_done(NB_REDUCERS):
     """Attends que les reducers ait fini leur travail
        La fonction est en attente sur un port et met a jour les resultats finaux a chaque fois qu'un reduce lui envoit
     """
@@ -81,29 +84,46 @@ def waiting_reducers_done():
     return final_result
 
 if __name__ == '__main__':
-    files = ["fichiers_test/exemple_court.txt","fichiers_test/exemple_long.txt","fichiers_test/exemple_test.txt"]
+    files = ["fichiers_test/exemple_court.txt", "fichiers_test/exemple_long.txt", "fichiers_test/exemple_test.txt","fichiers_test/exemple_tres_long.txt"]
+    times = []
 
-    reduce_processes = start_reduce_workers() #lance les reducers
-    map_processes = start_map_workers(files) #lance les mappers
+    for NB_REDUCERS in range(1, 6):
+        print(f"\n==== Test avec {NB_REDUCERS} reducers ====")
+        start = time.time()
 
-    n_maps=len(map_processes)
-    done_thread = Thread(target=wait_for_all_mappers, args=(n_maps,)) #lance un thread permettant d'attendre la fin des mappers
-    done_thread.start()
+        reduce_processes = start_reduce_workers(NB_REDUCERS)
+        map_processes = start_map_workers(files, NB_REDUCERS)
 
-    for p in map_processes:
-        p.join()
+        done_thread = Thread(target=wait_for_all_mappers, args=(len(map_processes),))
+        done_thread.start()
 
-    done_thread.join()#thread est fini 
+        for p in map_processes:
+            p.join()
+        done_thread.join()
 
-    notify_reducers_done() #notifie les receveurs
-    print("Mappage terminé")
-    result = waiting_reducers_done() #attends les resultats des receveurs
+        notify_reducers_done(NB_REDUCERS)
+        print("Mappage terminé")
 
-    with open('output/final_result.txt', 'w', encoding='utf-8') as f: #sauvergarde des données dans un txt
-        for word, count in result.items():
-            f.write(f"{word} : {count}\n")
-    print("Reduction terminée\nRésulats disponibles")
+        result = waiting_reducers_done(NB_REDUCERS)
 
-    for p in reduce_processes:#éteint les processus reducers
-        p.terminate()
-        p.join()
+        with open(f'output/final_result_{NB_REDUCERS}_reducers.txt', 'w', encoding='utf-8') as f:
+            for word, count in result.items():
+                f.write(f"{word} : {count}\n")
+
+        print("Reduction terminée\nRésultats disponibles")
+
+        for p in reduce_processes:
+            p.terminate()
+            p.join()
+
+        end = time.time()
+        duration = end - start
+        times.append(duration)
+        print(f"Temps total avec {NB_REDUCERS} reducers : {duration:.2f} secondes")
+        
+    plt.plot(range(1, 6), times, marker='o')
+    plt.xlabel('Nombre de reducers')
+    plt.ylabel('Temps d\'exécution (s)')
+    plt.title('Temps d\'exécution en fonction du nombre de reducers')
+    plt.grid(True)
+    plt.show()

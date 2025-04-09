@@ -25,7 +25,7 @@ def handle_connection(conn, addr,HOST,port):
 
         else:#les données recues viennent du mapper
             partial_counts = pickle.loads(data)
-            stored_counts.update(partial_counts) #mets ajour les données avec les données entrantes utilise la libraire collections
+            stored_counts.update(partial_counts) #mets a jour les données avec les données entrantes utilise la libraire collections
             
     except Exception as e:
         print(f"Erreur lors de la réception depuis {addr}: {e}")

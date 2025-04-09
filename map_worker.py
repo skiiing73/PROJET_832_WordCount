@@ -12,6 +12,7 @@ def run_map_worker(host, port, filepath, nb_reducers, reduce_port_base,map_done_
     
     notifier_coordinator(host,map_done_port)
 
+
 def lecture_fichier(filepath):
     """Lecture du fichier et comptage des mots """
 
