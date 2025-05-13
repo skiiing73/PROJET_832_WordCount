@@ -28,11 +28,11 @@ def envoi_data_recever(word_counts,nb_reducers,host,reduce_port_base,port):
        Envoie les données aux receveur
     """
     #Organisation des données par reduce ID
-    # Trie les mots locaux par fréquence décroissante
-    sorted_words = sorted(word_counts.items(), key=lambda x: -x[1])
     reduce_data = {i: {} for i in range(nb_reducers)}
-    for idx, (word, count) in enumerate(sorted_words):
-        reduce_id = idx % nb_reducers
+
+    # Répartition des mots par hash
+    for word, count in word_counts.items():
+        reduce_id = hash(word) % nb_reducers
         reduce_data[reduce_id][word] = count
 
 
