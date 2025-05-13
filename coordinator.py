@@ -106,7 +106,7 @@ def waiting_reducers_done(NB_REDUCERS):
     return final_result
 
 if __name__ == '__main__':
-    files = ["fichiers_test/exemple_court.txt", "fichiers_test/exemple_long.txt", "fichiers_test/exemple_test.txt","fichiers_test/exemple_tres_long.txt"]
+    files = [os.path.join("fichiers_test", f) for f in os.listdir("fichiers_test") if f.endswith('.txt')]    
     times = []
     print(f"\n==== Test avec {NB_REDUCERS} reducers ====")
     start = time.time()
@@ -114,11 +114,11 @@ if __name__ == '__main__':
     reduce_processes = start_reduce_workers(NB_REDUCERS)
     map_processes, map_args = start_map_workers(files, NB_REDUCERS)
 
-    # Thread d'attente des signaux de fin
+    #thread d'attente des signaux de fin
     done_thread = Thread(target=wait_for_all_mappers, args=(len(map_processes),))
     done_thread.start()
 
-    # Monitoring et relance si nécessaire
+    #monitoring et relance si nécessaire
     map_processes = monitor_mappers(map_processes, map_args, timeout=20)
 
     for p in map_processes:

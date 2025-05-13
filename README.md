@@ -22,6 +22,7 @@ Ce projet implémente un système distribué simplifié de **comptage de mots** 
 - Répartition plus **fine** des mots (hashing avancé ou trie plus complexe)
 
 ### 1. Exécution
+Placer dans le dossier `fichiers_test` tous les fichiers a analyser
 
 Dans un terminal, lancer :
 

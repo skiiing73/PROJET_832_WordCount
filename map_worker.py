@@ -1,3 +1,4 @@
+import hashlib
 import socket
 import pickle
 from collections import Counter
@@ -23,20 +24,29 @@ def lecture_fichier(filepath):
     return word_counts
 
 
-def envoi_data_recever(word_counts,nb_reducers,host,reduce_port_base,port):
-    """Choisi comme répartir les données entres les receveurs
-       Envoie les données aux receveur
-    """
-    #Organisation des données par reduce ID
-    reduce_data = {i: {} for i in range(nb_reducers)}
+def double_hash(word, nb_reducers):
+    """Double hachage pour améliorer la répartition des données"""
 
-    # Répartition des mots par hash
+    #utiliser SHA-256 et MD5 pour obtenir un hachage unique pour chaque mot
+    hash1 = hashlib.sha256(word.encode('utf-8')).hexdigest()
+    hash2 = hashlib.md5(word.encode('utf-8')).hexdigest()
+
+    hash_combined = int(hash1, 16) ^ int(hash2, 16) #combinaison des deux hachages
+
+    return hash_combined % nb_reducers
+
+
+def envoi_data_recever(word_counts, nb_reducers, host, reduce_port_base, port):
+    """Choisi comment répartir les données entre les receveurs
+       Envoie les données aux receveurs
+    """
+    reduce_data = {i: {} for i in range(nb_reducers)}
+    #repartition des mots par double hachage
     for word, count in word_counts.items():
-        reduce_id = hash(word) % nb_reducers
+        reduce_id = double_hash(word, nb_reducers)
         reduce_data[reduce_id][word] = count
 
-
-    #Envoi aux reduce workers correspondants
+    #envoi aux reduce workers 
     for reduce_id, data in reduce_data.items():
         if not data:
             continue
@@ -47,6 +57,7 @@ def envoi_data_recever(word_counts,nb_reducers,host,reduce_port_base,port):
                 print(f"Le mapper {port} a envoyé ses données au reducer {reduce_port_base+reduce_id}")
         except ConnectionRefusedError:
             print(f"Erreur de connexion au reduce worker {reduce_id}")
+
 
 def notifier_coordinator(host,map_done_port):
     """Signaler au coordinateur que le travail est fini"""
